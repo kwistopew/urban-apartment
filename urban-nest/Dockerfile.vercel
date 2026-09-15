@@ -1,19 +1,38 @@
-FROM php:8.3-apache
+FROM php:8.2-apache
 
-RUN docker-php-ext-install pdo_pgsql
-RUN a2enmod rewrite
+# Install PostgreSQL development libraries
+# Required for PDO PostgreSQL / Supabase
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libpq-dev \
+    && docker-php-ext-install pdo_pgsql \
+    && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /var/www/html
+# Enable Apache modules commonly needed by PHP applications
+RUN a2enmod rewrite headers
+
+# Copy the application into Apache's web directory
 COPY . /var/www/html/
 
+# Configure Apache for the application
 RUN printf '%s\n' \
-    '<Directory /var/www/html>' \
-    '    AllowOverride All' \
-    '    Require all granted' \
-    '</Directory>' \
-    > /etc/apache2/conf-available/urban-nest.conf \
-    && a2enconf urban-nest
+    '<VirtualHost *:80>' \
+    '    DocumentRoot /var/www/html' \
+    '    <Directory /var/www/html>' \
+    '        AllowOverride All' \
+    '        Require all granted' \
+    '    </Directory>' \
+    '</VirtualHost>' \
+    > /etc/apache2/sites-available/urban-nest.conf \
+    && a2dissite 000-default.conf \
+    && a2ensite urban-nest.conf
 
-# Vercel routes HTTP traffic to the container on port 80.
+# Make Apache/PHP able to access the application files
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html
+
+# Your application uses port 80
 EXPOSE 80
+
+# Keep Apache running in the foreground
 CMD ["apache2-foreground"]
