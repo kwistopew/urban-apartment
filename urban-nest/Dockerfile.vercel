@@ -31,8 +31,18 @@ RUN printf '%s\n' \
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
+# Start Apache on the port Vercel provides via $PORT (default 80)
+RUN printf '%s\n' \
+    '#!/bin/sh' \
+    'set -e' \
+    'PORT="${PORT:-80}"' \
+    'sed -i "s/^Listen .*/Listen ${PORT}/" /etc/apache2/ports.conf' \
+    'sed -i "s/<VirtualHost \*:80>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-available/urban-nest.conf' \
+    'exec apache2-foreground' \
+    > /usr/local/bin/start-urban-nest \
+    && chmod +x /usr/local/bin/start-urban-nest
+
 # Your application uses port 80
 EXPOSE 80
 
-# Keep Apache running in the foreground
-CMD ["apache2-foreground"]
+CMD ["/usr/local/bin/start-urban-nest"]
