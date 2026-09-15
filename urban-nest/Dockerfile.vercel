@@ -1,0 +1,19 @@
+FROM php:8.3-apache
+
+RUN docker-php-ext-install pdo_pgsql
+RUN a2enmod rewrite
+
+WORKDIR /var/www/html
+COPY . /var/www/html/
+
+RUN printf '%s\n' \
+    '<Directory /var/www/html>' \
+    '    AllowOverride All' \
+    '    Require all granted' \
+    '</Directory>' \
+    > /etc/apache2/conf-available/urban-nest.conf \
+    && a2enconf urban-nest
+
+# Vercel routes HTTP traffic to the container on port 80.
+EXPOSE 80
+CMD ["apache2-foreground"]
